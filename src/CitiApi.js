@@ -88,6 +88,41 @@ export default class CitiApi {
         })
     }
 
+    static getBasicUserInfo(authorization) {
+        return new Promise(function (resolve, reject) {
+            const url = 'https://sandbox.apihub.citi.com/gcb/api/v1/customer';
+            const options = {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authorization}`,
+                    'client_id': 'a12b4efd-d529-416a-ab19-37585d54b0a3',
+                    'uuid': uuid.v4()
+                },
+                mode: 'cors'
+            }
+
+            fetch(url, options)
+                .then(response =>
+                    response.json().then(json => ({
+                        status: response.status,
+                        data: json
+                    })))
+                .then(function (response) {
+                    console.log('BasicUserInfo Request succeeded with JSON response', response);
+                    if (response.status === 200) {
+                        resolve(BankProfile.parseCitiProfile(response.data));
+                    } else {
+                        reject(response.result.info);
+                    }
+                }.bind(this))
+                .catch(function (error) {
+                    console.log('BasicUserInfo Request failed', error);
+                    reject(error);
+                });
+        }.bind(this));
+    }
+
     static getAccounts(authorization) {
         return new Promise(function (resolve, reject) {
             const url = 'https://sandbox.apihub.citi.com/gcb/api/v1/accounts';
@@ -159,38 +194,4 @@ export default class CitiApi {
         }.bind(this));
     }
 
-    static getBasicUserInfo(authorization) {
-        return new Promise(function (resolve, reject) {
-            const url = 'https://sandbox.apihub.citi.com/gcb/api/v1/customer';
-            const options = {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${authorization}`,
-                    'client_id': 'a12b4efd-d529-416a-ab19-37585d54b0a3',
-                    'uuid': uuid.v4()
-                },
-                mode: 'cors'
-            }
-
-            fetch(url, options)
-                .then(response =>
-                    response.json().then(json => ({
-                        status: response.status,
-                        data: json
-                    })))
-                .then(function (response) {
-                    console.log('BasicUserInfo Request succeeded with JSON response', response);
-                    if (response.status === 200) {
-                        resolve(new BankProfile(response.data));
-                    } else {
-                        reject(response.result.info);
-                    }
-                }.bind(this))
-                .catch(function (error) {
-                    console.log('BasicUserInfo Request failed', error);
-                    reject(error);
-                });
-        }.bind(this));
-    }
 }

@@ -4,13 +4,6 @@ import fetch from 'node-fetch'
 
 export default class BbvaApi {
 
-    /*
-        This will eventually move into a middleware on the server side.  A lot of
-        the values in here will be pulled from config based off environment variables
-        but since those are static with the client build we have to derrive things
-        like the endpoints and redirectUri from the client.
-    */
-
     static getAuthToken(key, redirectUri) {
         return new Promise(function (resolve, reject) {
             const authorization = btoa("app.bbva.mynewapp:gQZxI*hKVUF64ADt9BC34rmVT5Ztk0YtiQzBHv3LO2CtsIxS612q$xFBcawpJs4S");
@@ -87,6 +80,37 @@ export default class BbvaApi {
         })
     }
 
+    static getBasicUserInfo(authorization) {
+        return new Promise(function (resolve, reject) {
+            const url = 'https://apis.bbva.com/customers-sbx/v1/me-basic';
+            const options = {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `jwt ${authorization}`
+                },
+                mode: 'cors'
+            }
+
+            fetch(url, options)
+                .then(function (response) {
+                    return response.json();
+                })
+                .then(function (response) {
+                    console.log('BasicUserInfo Request succeeded with JSON response', response);
+                    if (response.result.code === 200) {
+                        resolve(BankProfile.parseBbvaProfile(response.data));
+                    } else {
+                        reject(response.result);
+                    }
+                }.bind(this))
+                .catch(function (error) {
+                    console.log('BasicUserInfo Request failed', error);
+                    reject(error);
+                });
+        }.bind(this));
+    }
+
     static getAccounts(authorization) {
         return new Promise(function (resolve, reject) {
             const url = 'https://apis.bbva.com/accounts-sbx/v1/me/accounts';
@@ -156,35 +180,5 @@ export default class BbvaApi {
         }.bind(this));
     }
 
-    static getBasicUserInfo(authorization) {
-        return new Promise(function (resolve, reject) {
-            const url = 'https://apis.bbva.com/customers-sbx/v1/me-basic';
-            const options = {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `jwt ${authorization}`
-                },
-                mode: 'cors'
-            }
-
-            fetch(url, options)
-                .then(function (response) {
-                    return response.json();
-                })
-                .then(function (response) {
-                    console.log('BasicUserInfo Request succeeded with JSON response', response);
-                    if (response.result.code === 200) {
-                        resolve(new BankProfile(response.data));
-                    } else {
-                        reject(response.result);
-                    }
-                }.bind(this))
-                .catch(function (error) {
-                    console.log('BasicUserInfo Request failed', error);
-                    reject(error);
-                });
-        }.bind(this));
-    }
 }
 

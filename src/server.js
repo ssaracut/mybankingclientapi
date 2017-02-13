@@ -155,7 +155,7 @@ server.register(HapiAuthJwt, function (err) {
                         return MyBankingClientApi.getBankProfile(bank, access_token, refresh_token)
                     })
                     .then(profile => {
-                        reply(JSON.stringify(new BankProfile(profile)))
+                        reply(new BankProfile(profile))
                     })
                     .catch(error => { reply(error).code(error.code) })
             }

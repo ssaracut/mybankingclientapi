@@ -20,7 +20,7 @@ export class Profile {
 
 export class BankProfile {
     constructor(adapterBankProfile){
-        this.firstName = adapterProfile.firstName;
-        this.lastName = adapterProfile.lastName;
+        this.firstName = adapterBankProfile.firstName;
+        this.lastName = adapterBankProfile.lastName;
     }
 }
