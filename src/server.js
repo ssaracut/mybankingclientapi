@@ -78,6 +78,12 @@ server.register(HapiAuthJwt, function (err) {
             handler: Handlers.getProfile
         },
         {
+            method: 'POST',
+            config: { auth: 'jwt' },
+            path: `${contextRoot}auth/bank/{bank}`,
+            handler: Handlers.getBankAuth
+        },
+        {
             method: 'GET',
             config: { auth: { strategies: ['jwt'] } },
             path: `${contextRoot}profile/{bank}`,
@@ -88,13 +94,8 @@ server.register(HapiAuthJwt, function (err) {
             config: { auth: { strategies: ['jwt'] } },
             path: `${contextRoot}accounts/{bank}`,
             handler: Handlers.getBankAccounts
-        },
-        {
-            method: 'POST',
-            config: { auth: 'jwt' },
-            path: `${contextRoot}auth/bank/{bank}`,
-            handler: Handlers.getBankAuth
         }
+
     ]);
 });
 

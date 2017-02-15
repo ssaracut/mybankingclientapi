@@ -1,6 +1,6 @@
 import JWT from 'jsonwebtoken'
 import MyBankingClientApi from './MyBankingClientApi'
-import { Profile, BankProfile } from './DataTypes/ServiceDataTypes'
+import { Profile, BankProfile, Accounts } from './DataTypes/ServiceDataTypes'
 
 function generateJwt(key) {
     return JWT.sign({ key }, 'NeverShareYourSecret');
@@ -108,18 +108,17 @@ export default class Handlers {
         request.log(request.path);
 
         const bank = request.params.bank;
+        const profileKey = request.auth.credentials.key;
 
-        MyBankingClientApi.getProfile(request.auth.credentials.key)
+        MyBankingClientApi.getProfile(profileKey)
             .then(profile => {
-                const access_token = profile.banks[bank].auth_data.access_token;
-                const refresh_token = profile.banks[bank].auth_data.refresh_token;
-                return MyBankingClientApi.getBankProfile(bank, access_token, refresh_token)
+                return MyBankingClientApi.getBankProfile(bank, profile)
             })
             .then(profile => {
-                reply(new BankProfile(profile))
+                reply(new BankProfile(profile.data)).code(profile.code)
             })
             .catch(error => {
-                reply(error).code(error.code)
+                reply({ message: error.message }).code(error.code)
             })
     }
 
@@ -130,11 +129,10 @@ export default class Handlers {
         MyBankingClientApi.getProfile(request.auth.credentials.key)
             .then(profile => {
                 const access_token = profile.banks[bank].auth_data.access_token;
-                const refresh_token = profile.banks[bank].auth_data.refresh_token;
-                return MyBankingClientApi.accounts(bank, access_token, refresh_token)
+                return MyBankingClientApi.getBankAccounts(bank, access_token)
             })
-            .then(profile => {
-                reply(new BankProfile(profile))
+            .then(accounts => {
+                reply(new Accounts(accounts.data))
             })
             .catch(error => { reply(error).code(error.code) })
     }

@@ -62,11 +62,11 @@ export default class BbvaApi {
                 .then(function (response) {
                     console.log('Refresh Token Request completed with JSON response:', response.data);
                     if (response.status === 200) {
-                        resolve(response.data);
+                        resolve({ code: response.status, data: response.data });
                     } else if (response.status === 401 && response.data.result.internal_code === "invalid_token") {
-                        reject('You must re-authenticate to the bank as your access has expired.');;
+                        reject({ code: response.status, message: 'You must re-authenticate to the bank as your access has expired.' });
                     } else {
-                        reject(response.data.result.info);
+                        reject({ code: response.status, message: response.data.result.info });
                     }
                 })
                 .catch(function (error) {
@@ -94,12 +94,8 @@ export default class BbvaApi {
                 })
                 .then(function (response) {
                     console.log('BasicUserInfo Request completed with JSON response:', response);
-                    if (response.result.code === 200) {
-                        const x = { result: { ...response.result }, data: BankProfile.parseBbvaProfile(response.data) }
-                        resolve();
-                    } else {
-                        reject(response.result);
-                    }
+                    const data = response.data ? BankProfile.parseBbvaProfile(response.data) : undefined;
+                    resolve({ ...response.result, data });
                 }.bind(this))
                 .catch(function (error) {
                     console.log('BasicUserInfo Request failed with the following error:', error);
@@ -122,14 +118,18 @@ export default class BbvaApi {
 
             fetch(url, options)
                 .then(function (response) {
-                    return response.json();
+                    return response.json()
+                        .then(json => ({
+                            status: response.status,
+                            data: json.data || json
+                        }));
                 })
                 .then(function (response) {
                     console.log('Accounts Request succeeded with JSON response', response);
-                    if (response.result.code === 200) {
-                        resolve(Accounts.parseBbvaAccounts(response.data.accounts));
+                    if (response.status === 200) {
+                        resolve({ code: response.status, data: Accounts.parseBbvaAccounts(response.data.accounts) });
                     } else {
-                        reject(response.result.info);
+                        reject({ code: response.status, message: response.data.result.info });
                     }
                 }.bind(this))
                 .catch(function (error) {

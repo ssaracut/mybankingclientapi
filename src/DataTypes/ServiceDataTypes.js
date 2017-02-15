@@ -30,12 +30,12 @@ export class BankProfile {
 
 export class Accounts extends Array {
     constructor(adapterAccounts) {
+        //Just being lazy and not mapping here
+        //when I run into something that needs to 
+        //get filtered I'll create an account object
         super();
-        adapterAccounts.forEach(function (account) {
-            //Just being lazy and not mapping here
-            //when I run into something that needs to 
-            //get filtered I'll create an account object
-            this.push(account);
+        adapterAccounts.forEach(account=>{
+            this.push(account)
         })
         // this.accountKey = adapterAccounts.accountKey;
         // this.description = adapterAccounts.description;

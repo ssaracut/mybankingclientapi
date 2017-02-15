@@ -46,15 +46,32 @@ export default class MyBankingClientApi {
         return Datastore.retrieve(EntityTypes.PROFILE, key);
     }
 
-    static getBankProfile(bank, access_token, refresh_token) {
-        return ApiAdapters[bank].getBasicUserInfo(access_token);
+    static getBankProfile(bank, profile) {
+        const access_token = profile.banks[bank].auth_data.access_token;
+        const refresh_token = profile.banks[bank].auth_data.refresh_token;
+
+        return ApiAdapters[bank].getBasicUserInfo(access_token)
+            .then(result => {
+                if (result.code === 401) {
+                    return MyBankingClientApi.refreshBankingApiAuthToken(bank, refresh_token)
+                        .then(result => {
+                            const newProfile = { ...profile, banks: { ...profile.banks, [bank]: { ...profile.banks[bank], auth_data:result.data } } }
+                            return MyBankingClientApi.setProfile(newProfile, profile.key);
+                        })
+                        .then(result => {
+                            return ApiAdapters[bank].getBasicUserInfo(bank, result.profile)
+                        });
+                } else {
+                    return result;
+                }
+            });
     }
 
-    static getBankAccounts(bank, access_token, refresh_token) {
-        return ApiAdapters[bank].getAccounts();
+    static getBankAccounts(bank, access_token) {
+        return ApiAdapters[bank].getAccounts(access_token);
     }
 
-    static getBankAccountTransactions(bank, accountKey, access_token, refresh_token) {
+    static getBankAccountTransactions(bank, accountKey, access_token) {
         return ApiAdapters[bank].getAccountTransactions(accountKey);
     }
 }
