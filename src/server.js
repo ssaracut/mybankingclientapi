@@ -2,9 +2,8 @@ import Hapi from 'hapi';
 import Good from 'good';
 import HapiAuthJwt from 'hapi-auth-jwt2'
 import Bell from 'bell'
-import JWT from 'jsonwebtoken'
+import Handlers from './Handlers'
 import MyBankingClientApi from './MyBankingClientApi'
-import { Profile, BankProfile } from './DataTypes/ServiceDataTypes'
 
 const server = new Hapi.Server();
 const contextRoot = process.env.CONTEXT_ROOT;
@@ -18,11 +17,6 @@ function validate(decoded, request, callback) {
         })
         .catch(error => { callback(null, false) })
 };
-
-function generateJwt(key) {
-    return JWT.sign({ key }, 'NeverShareYourSecret');
-}
-
 
 // Register bell with the server
 server.register(Bell, function (err) {
@@ -46,58 +40,7 @@ server.register(Bell, function (err) {
                 strategy: 'google',
                 mode: 'try'
             },
-            handler: function (request, reply) {
-
-                if (!request.auth.isAuthenticated) {
-                    return reply('Authentication failed due to: ' + request.auth.error.message);
-                }
-
-                const location = process.env.NODE_ENV === 'development' ? "https://localhost:3000/" : "/";
-                const provider = request.auth.credentials.provider;
-                const providerId = request.auth.credentials.profile.id;
-                const profileKey = `${provider}:${providerId}`;
-                const providerToken = request.auth.credentials.token;
-                const providerExpiresIn = request.auth.credentials.expiresIn;
-
-                const cookie_options = {
-                    ttl: 5 * 24 * 60 * 60 * 1000, // expires 5 days from today 
-                    encoding: 'none',    // we already used JWT to encode 
-                    isSecure: process.env.NODE_ENV === 'development' ? false : true, // warm & fuzzy feelings 
-                    isHttpOnly: true,    // prevent client alteration 
-                    clearInvalid: false, // remove invalid cookies 
-                    strictHeader: true   // don't allow violations of RFC 6265 
-                }
-
-                //check if a user profile exists -> 
-                MyBankingClientApi.getProfile(profileKey)
-                    .then(profile => {
-
-                        if (profile) {
-                            return reply.redirect(location).state("token", generateJwt(profileKey), cookie_options);
-                        } else {
-                            const newProfile = {
-                                provider,
-                                token: request.auth.credentials.token,
-                                expiresIn: request.auth.credentials.expiresIn,
-                                firstName: request.auth.credentials.profile.name.given_name,
-                                lastName: request.auth.credentials.profile.name.family_name,
-                                email: request.auth.credentials.profile.email,
-                                banks: {}
-                            }
-                            MyBankingClientApi.setProfile(newProfile, profileKey)
-                                .then(profileKey => {
-                                    return reply.redirect(location).state("token", generateJwt(profileKey), cookie_options);
-                                })
-                                .catch(error => {
-                                    return reply('Profile Error').code(400);
-                                });
-                        }
-
-                    })
-                    .catch(error => {
-                        return reply('Profile Error').code(400);
-                    });
-            }
+            handler: Handlers.loginGoogle
         }
     });
 
@@ -132,66 +75,25 @@ server.register(HapiAuthJwt, function (err) {
             method: 'GET',
             config: { auth: { strategies: ['jwt'] } },
             path: `${contextRoot}profile`,
-            handler: (request, reply) => {
-                MyBankingClientApi.getProfile(request.auth.credentials.key)
-                    .then(profile => {
-                        reply(new Profile(profile))
-                    })
-                    .catch(error => {
-                        reply(error)
-                    })
-            }
+            handler: Handlers.getProfile
         },
         {
             method: 'GET',
             config: { auth: { strategies: ['jwt'] } },
             path: `${contextRoot}profile/{bank}`,
-            handler: (request, reply) => {
-                const bank = request.params.bank;
-                MyBankingClientApi.getProfile(request.auth.credentials.key)
-                    .then(profile => {
-                        const access_token = profile.banks[bank].auth_data.access_token;
-                        const refresh_token = profile.banks[bank].auth_data.refresh_token;
-                        return MyBankingClientApi.getBankProfile(bank, access_token, refresh_token)
-                    })
-                    .then(profile => {
-                        reply(new BankProfile(profile))
-                    })
-                    .catch(error => { reply(error).code(error.code) })
-            }
+            handler: Handlers.getBankProfile
+        },
+        {
+            method: 'GET',
+            config: { auth: { strategies: ['jwt'] } },
+            path: `${contextRoot}accounts/{bank}`,
+            handler: Handlers.getBankAccounts
         },
         {
             method: 'POST',
             config: { auth: 'jwt' },
             path: `${contextRoot}auth/bank/{bank}`,
-            handler: (request, reply) => {
-                const bank = request.params.bank;
-                const code = request.payload.code;
-                const profileKey = request.auth.credentials.key;
-                const redirectUri = request.headers.referer.split("?")[0];
-
-                if (bank && code && redirectUri) {
-                    MyBankingClientApi.getProfile(profileKey)
-                        .then(profile => {
-                            return MyBankingClientApi.getBankApiAuthToken(bank, code, redirectUri)
-                                .then(auth_data => {
-                                    return { ...profile, banks: { ...profile.banks, [bank]: { ...[bank], auth_data } } }
-                                })
-                        })
-                        .then(profile => {
-                            return MyBankingClientApi.setProfile(profile, profileKey)
-                        })
-                        .then(result => {
-                            reply(JSON.stringify(result.profile))
-                        })
-                        .catch(error => {
-                            reply(error).code(500)
-                        })
-                } else {
-                    return reply(`Invalid bank or code provided`).code(400);
-                }
-
-            }
+            handler: Handlers.getBankAuth
         }
     ]);
 });
@@ -199,11 +101,16 @@ server.register(HapiAuthJwt, function (err) {
 server.register({
     register: Good,
     options: {
+        includes: {
+            request: ['payload'],
+            response: ['payload']
+        },
         reporters: {
             console: [{
                 module: 'good-squeeze',
                 name: 'Squeeze',
                 args: [{
+                    request: '*',
                     response: '*',
                     log: '*'
                 }]

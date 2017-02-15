@@ -24,6 +24,10 @@ export default class MyBankingClientApi {
         return ApiAdapters[bank].getAuthToken(code, redirectUri);
     }
 
+    static refreshBankingApiAuthToken(bank, token) {
+        return ApiAdapters[bank].refreshAuthToken(token)
+    }
+
     static validateProfile(key) {
         return Datastore.retrieve(EntityTypes.PROFILE, key)
             .then(result => {
@@ -50,7 +54,7 @@ export default class MyBankingClientApi {
         return ApiAdapters[bank].getAccounts();
     }
 
-    static getBankAccountTransactions(bank, accountKey, access_token,refresh_token) {
+    static getBankAccountTransactions(bank, accountKey, access_token, refresh_token) {
         return ApiAdapters[bank].getAccountTransactions(accountKey);
     }
 }

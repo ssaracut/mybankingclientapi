@@ -40,7 +40,6 @@ export default class BbvaApi {
 
     static refreshAuthToken(token) {
         return new Promise(function (resolve, reject) {
-            const profile = JSON.parse(localStorage.getItem('profile'));
             const authorization = btoa("app.bbva.mynewapp:gQZxI*hKVUF64ADt9BC34rmVT5Ztk0YtiQzBHv3LO2CtsIxS612q$xFBcawpJs4S");
             const url = 'https://connect.bbva.com/token?grant_type=refresh_token';
             const options = {
@@ -61,20 +60,17 @@ export default class BbvaApi {
                         data: json
                     })))
                 .then(function (response) {
-                    console.log('Token Request succeeded with JSON response', response.data);
+                    console.log('Refresh Token Request completed with JSON response:', response.data);
                     if (response.status === 200) {
-                        profile.banks.bbva = { auth_data: response.data };
-                        localStorage.setItem('profile', JSON.stringify(profile));
                         resolve(response.data);
                     } else if (response.status === 401 && response.data.result.internal_code === "invalid_token") {
-                        alert('You must re-authenticate to the bank as your access has expired.');
                         reject('You must re-authenticate to the bank as your access has expired.');;
                     } else {
                         reject(response.data.result.info);
                     }
                 })
                 .catch(function (error) {
-                    console.log('Token Request failed', error);
+                    console.log('Refresh Token Request failed with the following error:', error);
                     reject(error);
                 });
         })
@@ -97,15 +93,16 @@ export default class BbvaApi {
                     return response.json();
                 })
                 .then(function (response) {
-                    console.log('BasicUserInfo Request succeeded with JSON response', response);
+                    console.log('BasicUserInfo Request completed with JSON response:', response);
                     if (response.result.code === 200) {
-                        resolve(BankProfile.parseBbvaProfile(response.data));
+                        const x = { result: { ...response.result }, data: BankProfile.parseBbvaProfile(response.data) }
+                        resolve();
                     } else {
                         reject(response.result);
                     }
                 }.bind(this))
                 .catch(function (error) {
-                    console.log('BasicUserInfo Request failed', error);
+                    console.log('BasicUserInfo Request failed with the following error:', error);
                     reject(error);
                 });
         }.bind(this));
@@ -130,8 +127,7 @@ export default class BbvaApi {
                 .then(function (response) {
                     console.log('Accounts Request succeeded with JSON response', response);
                     if (response.result.code === 200) {
-                        const accounts = Accounts.parseBbvaAccounts(response.data.accounts);
-                        resolve(accounts);
+                        resolve(Accounts.parseBbvaAccounts(response.data.accounts));
                     } else {
                         reject(response.result.info);
                     }
