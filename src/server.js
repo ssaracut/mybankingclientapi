@@ -34,7 +34,7 @@ server.register(Bell, function (err) {
 
     server.route({
         method: '*', // Must handle both GET and POST
-        path: `${contextRoot}login`,          // The callback endpoint registered with the provider
+        path: `${contextRoot}login/google`,          // The callback endpoint registered with the provider
         config: {
             auth: {
                 strategy: 'google',

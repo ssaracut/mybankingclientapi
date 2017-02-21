@@ -34,10 +34,10 @@ export default class Handlers {
         //check if a user profile exists -> 
         MyBankingClientApi.getProfile(profileKey)
             .then(profile => {
-
                 if (profile) {
-                    return reply.redirect(location).state("token", generateJwt(profileKey), cookie_options).code(200);
+                    return { profile, profileKey }
                 } else {
+                    //if a profile hasn't been registered yet register one
                     const newProfile = {
                         provider,
                         token: request.auth.credentials.token,
@@ -47,15 +47,11 @@ export default class Handlers {
                         email: request.auth.credentials.profile.email,
                         banks: {}
                     }
-                    MyBankingClientApi.setProfile(newProfile, profileKey)
-                        .then(profileKey => {
-                            return reply.redirect(location).state("token", generateJwt(profileKey), cookie_options).code(201);
-                        })
-                        .catch(error => {
-                            return reply('Profile Error').code(400);
-                        });
+                    return MyBankingClientApi.setProfile(newProfile, profileKey)
                 }
-
+            })
+            .then(result => {
+                return reply.redirect(location).state("token", generateJwt(result.profileKey), cookie_options);
             })
             .catch(error => {
                 return reply('Profile Error').code(400);
